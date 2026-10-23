@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  IMAGE_NAME: task-manager-api
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run pylint
+        run: pylint src --fail-under=7.0
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run unit tests
+        run: pytest
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tag
+        id: meta
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          SHA="${{ github.sha }}"
+          IMAGE="ghcr.io/${OWNER}/${IMAGE_NAME}:${SHA}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "owner=${OWNER}" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: |
+            ${{ steps.meta.outputs.image }}
+            task-manager-api:ci
+
+      - name: Push image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker push "${{ steps.meta.outputs.image }}"
+
+      - name: Save image for scan job
+        run: docker save task-manager-api:ci -o /tmp/task-manager-api.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: task-manager-api-image
+          path: /tmp/task-manager-api.tar
+          retention-days: 1
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: task-manager-api-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/task-manager-api.tar
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: task-manager-api:ci
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
