@@ -16,7 +16,7 @@ A containerized RESTful Task Manager service with Minikube deployment and GitHub
 - Rate limiting (100 requests / minute / IP)
 - Multi-stage Docker image (non-root)
 - Kubernetes manifests for Minikube
-- GitHub Actions: Lint → Test → Build → Trivy scan
+- GitHub Actions: Lint → Test → Build → Trivy → Push (Aliyun ACR)
 
 ## Tech Stack
 
@@ -152,19 +152,30 @@ curl http://task-manager.local/tasks
 
 ## CI/CD
 
-Workflow: `.github/workflows/ci.yml`
+### Pipeline — CI then Push
 
-Triggers:
+```text
+Lint → Test → Build → Security Scan → Push (Aliyun)
+```
 
-- Push to `main`
-- Pull request to `main`
+- **`.github/workflows/ci.yml`**：质量门禁；仅在 push 到 `main` 且前面全部成功后，才调用 push  
+- **`.github/workflows/push.yml`**：可复用推送工作流；也可手动 `workflow_dispatch`  
+- **PR**：只跑到 Security Scan，不推镜像  
 
-Pipeline stages (fail-fast):
+镜像地址：
 
-1. **Lint** – pylint
-2. **Test** – pytest + coverage
-3. **Build** – Docker image tagged `ghcr.io/<username>/task-manager-api:<sha>`
-4. **Security Scan** – Trivy (CRITICAL/HIGH)
+`{ALIYUN_REGISTRY}/{ALIYUN_NAME_SPACE}/task-manager-api:{YYYYMMDDHHMMSS}_{arch}`
+
+Platforms 来自仓库根目录 `platforms` 文件。
+
+Required GitHub Secrets:
+
+| Secret | Example |
+|--------|---------|
+| `ALIYUN_REGISTRY` | `registry.cn-hangzhou.aliyuncs.com` |
+| `ALIYUN_NAME_SPACE` | `your-namespace` |
+| `ALIYUN_REGISTRY_USER` | ACR username |
+| `ALIYUN_REGISTRY_PASSWORD` | ACR password / token |
 
 ## Git Workflow
 

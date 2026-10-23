@@ -1,0 +1,55 @@
+name: Push Docker Image
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  ALIYUN_REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+  ALIYUN_NAME_SPACE: ${{ secrets.ALIYUN_NAME_SPACE }}
+  ALIYUN_REGISTRY_USER: ${{ secrets.ALIYUN_REGISTRY_USER }}
+  ALIYUN_REGISTRY_PASSWORD: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+  IMAGE_NAME: task-manager-api
+
+jobs:
+  push:
+    name: Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Aliyun Registry
+        run: |
+          docker login -u $ALIYUN_REGISTRY_USER -p $ALIYUN_REGISTRY_PASSWORD $ALIYUN_REGISTRY
+
+      - name: Set image tag
+        run: echo "IMAGE_TAG=$(date -u +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+
+      - name: Read Platforms from File
+        run: |
+          if [ -f platforms ]; then
+            PLATFORMS=$(grep -v '^#' platforms | tr '\n' ',' | sed 's/,$//')
+            echo "PLATFORMS=${PLATFORMS}" >> $GITHUB_ENV
+          else
+            echo "Platform file not found!"
+            exit 1
+          fi
+
+      - name: Push Docker Images
+        run: |
+          # 阿里云 ACR 不支持 OCI empty attestation
+          for PLATFORM in $(echo $PLATFORMS | tr ',' '\n'); do
+            plat="${PLATFORM#*/}"
+            docker buildx build \
+              --platform $PLATFORM \
+              --provenance=false \
+              --sbom=false \
+              -t ${ALIYUN_REGISTRY}/${ALIYUN_NAME_SPACE}/${IMAGE_NAME}:${IMAGE_TAG}_${plat} \
+              . \
+              --push
+          done
