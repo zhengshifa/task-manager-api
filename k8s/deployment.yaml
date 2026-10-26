@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: task-manager-api
-          image: task-manager-api:local
+          image: registry.cn-hangzhou.aliyuncs.com/zsf-images/task-manager-api:20261024010118_amd64
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
