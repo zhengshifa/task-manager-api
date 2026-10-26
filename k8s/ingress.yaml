@@ -1,22 +1,49 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+# Envoy Gateway resources (Gateway API) replacing the former nginx Ingress.
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+  labels:
+    app.kubernetes.io/name: task-manager-api
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
 metadata:
   name: task-manager-api
   namespace: task-manager
   labels:
     app.kubernetes.io/name: task-manager-api
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
-  ingressClassName: nginx
+  gatewayClassName: eg
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: task-manager-api
+  namespace: task-manager
+  labels:
+    app.kubernetes.io/name: task-manager-api
+spec:
+  parentRefs:
+    - name: task-manager-api
+      namespace: task-manager
+  hostnames:
+    - task-manager.local
+    - demo.mystock.top
   rules:
-    - host: task-manager.local
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: task-manager-api
-                port:
-                  number: 8080
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: task-manager-api
+          port: 8080

@@ -107,6 +107,6 @@ jobs:
     name: Push
     needs: security-scan
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/push.yml
+    uses: ./.github/workflows/push-ali.yml
     secrets: inherit
 

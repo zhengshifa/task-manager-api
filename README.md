@@ -1,10 +1,8 @@
 # Task Manager API
 
-[![CI](https://github.com/OWNER/task-manager-api/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/task-manager-api/actions/workflows/ci.yml)
+[![CI](https://github.com/zhengshifa/task-manager-api/actions/workflows/ci.yml/badge.svg)](https://github.com/zhengshifa/task-manager-api/actions/workflows/ci.yml)
 
 A containerized RESTful Task Manager service with Minikube deployment and GitHub Actions CI/CD.
-
-> Replace `OWNER` in the badge URL with your GitHub username after creating the public repository.
 
 ## Features
 
@@ -138,19 +136,20 @@ Quick path:
 
 ```bash
 minikube start
-minikube addons enable ingress
+# Install Envoy Gateway once, then:
 eval $(minikube docker-env)
 docker build -t task-manager-api:local .
 kubectl apply -f k8s/
-kubectl get pods -n task-manager
+kubectl get pods,gateway,httproute -n task-manager
 ```
 
-Map `task-manager.local` to `$(minikube ip)` in your hosts file, then:
+Map `task-manager.local` to the Envoy Gateway address (see [k8s/README.md](k8s/README.md)), then:
 
 ```bash
 curl http://task-manager.local/health
 curl http://task-manager.local/tasks
 ```
+
 
 ## CI/CD
 
