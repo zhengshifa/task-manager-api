@@ -52,6 +52,7 @@ task-manager-api/
 |--------|------|-------------|--------|
 | GET | `/health` | Health check | 200 |
 | GET | `/tasks` | List tasks | 200 |
+| GET | `/tasks?status=todo\|in_progress\|done` | List tasks filtered by status | 200 / 400 |
 | GET | `/tasks/{id}` | Get task | 200 / 404 |
 | POST | `/tasks` | Create task | 201 / 400 |
 | PUT | `/tasks/{id}` | Update task | 200 / 404 |
@@ -112,6 +113,7 @@ curl -X POST http://localhost:8080/tasks \
   -d '{"title":"Learn Kubernetes","description":"Deploy to Minikube","status":"todo"}'
 
 curl http://localhost:8080/tasks
+curl 'http://localhost:8080/tasks?status=todo'
 ```
 
 ## Docker

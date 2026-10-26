@@ -2,9 +2,9 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 
-from src.models.task import Task, TaskCreate, TaskUpdate
+from src.models.task import Task, TaskCreate, TaskStatus, TaskUpdate
 from src.storage import store
 
 logger = logging.getLogger(__name__)
@@ -13,9 +13,16 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 @router.get("", response_model=list[Task], status_code=status.HTTP_200_OK)
-def list_tasks() -> list[Task]:
-    tasks = store.list_tasks()
-    logger.info("Listed %s tasks", len(tasks))
+def list_tasks(
+    status_filter: TaskStatus | None = Query(
+        default=None,
+        alias="status",
+        description="Optional status filter: todo, in_progress, or done",
+    ),
+) -> list[Task]:
+    """List tasks, optionally filtered by status (`?status=todo|in_progress|done`)."""
+    tasks = store.list_tasks(status=status_filter)
+    logger.info("Listed %s tasks (status=%s)", len(tasks), status_filter)
     return tasks
 
 
