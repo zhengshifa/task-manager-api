@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from threading import Lock
 
-from src.models.task import Task, TaskCreate, TaskUpdate
+from src.models.task import Task, TaskCreate, TaskStatus, TaskUpdate
 
 
 class TaskStore:
@@ -13,9 +13,12 @@ class TaskStore:
         self._tasks: dict[str, Task] = {}
         self._lock = Lock()
 
-    def list_tasks(self) -> list[Task]:
+    def list_tasks(self, status: TaskStatus | None = None) -> list[Task]:
         with self._lock:
-            return list(self._tasks.values())
+            tasks = list(self._tasks.values())
+        if status is None:
+            return tasks
+        return [task for task in tasks if task.status == status]
 
     def get(self, task_id: str) -> Task | None:
         with self._lock:

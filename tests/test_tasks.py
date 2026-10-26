@@ -79,3 +79,27 @@ def test_list_tasks_after_create(client):
     response = client.get("/tasks")
     assert response.status_code == 200
     assert len(response.json()) == 2
+
+
+def test_list_tasks_filter_by_status(client):
+    client.post("/tasks", json={"title": "Todo A", "status": "todo"})
+    client.post("/tasks", json={"title": "Doing B", "status": "in_progress"})
+    client.post("/tasks", json={"title": "Done C", "status": "done"})
+
+    todo_resp = client.get("/tasks", params={"status": "todo"})
+    assert todo_resp.status_code == 200
+    todos = todo_resp.json()
+    assert len(todos) == 1
+    assert todos[0]["title"] == "Todo A"
+    assert todos[0]["status"] == "todo"
+
+    done_resp = client.get("/tasks", params={"status": "done"})
+    assert done_resp.status_code == 200
+    dones = done_resp.json()
+    assert len(dones) == 1
+    assert dones[0]["status"] == "done"
+
+
+def test_list_tasks_invalid_status_filter(client):
+    response = client.get("/tasks", params={"status": "unknown"})
+    assert response.status_code == 400
